@@ -11,6 +11,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+**What do you imagine is the reason for log-transforming the protein levels in biomarker-raw.csv? (Hint: look at the distribution of the raw values for a sample of proteins.)**
+
+
 # Setup
 
 ```{r}
@@ -45,7 +48,7 @@ biomarker_raw <- read_csv(here("data", "biomarker-raw.csv"),
 
 # Distributions of Raw Values
 
-```{r}
+```{r, fig.width= 8, fig.height= 10}
 #picking 4 random proteins
 set.seed(2026)
 
@@ -59,16 +62,51 @@ hist_data <- biomarker_raw |>
   pivot_longer(c(raw, log10), names_to = "scale", values_to = "value") |>
   mutate(scale = factor(scale, levels = c("raw", "log10")))
 
-ggplot(hist_data, aes(x = value)) +
+hist_plot <- ggplot(hist_data, aes(x = value)) +
   geom_histogram(bins = 25, fill = "steelblue", color = "white") +
   facet_wrap(vars(protein, scale), scales = "free", ncol = 2) +
   labs(x = "protein level", y = "count",
        title = "raw vs. log10 protein levels")
 
+hist_plot
+
+ggsave(here("results", "figures", "q1-raw-vs-log-histograms.png"),
+       plot = hist_plot, width = 8, height = 10, dpi = 300)
+
 ```
 
+**Why log-transform the protein levels?**
+On the raw scale, the protein levels are generally right skewed. For a typical protein, most subjects' values cluster at the low end of its range, with a long tail of a few much larger values, and some proteins having extreme readings that are above the rest by a lot. Because of this, the mean of a protein is typically pulled above its median.
 
+After applying the $log_{10}$ transformation, the distributions become much closer to symmetric and roughly bell shaped. Regardless some proteins still end up slightly left skewed, since the the log compresses the larger values more than the smaller ones, but the heavy right tails and extreme values are no longer dominating. In general, log transforming compresses the scale of the data, making it more symmetric and easier to read. With this data set in particular, the protein values vary widely, so applying the log transformation makes the distribution easier to visualize and brings them closer to normality. 
 
+# Skewness Summary
+
+```{r}
+skew <- function(x) {
+  x <- x[!is.na(x)]
+  mean((x - mean(x))^3) / sd(x)^3
+}
+
+skew_summary <- tibble(
+  protein = protein_cols,
+  raw = map_dbl(biomarker_raw[protein_cols], skew),
+  log10 = map_dbl(biomarker_raw[protein_cols], ~skew(log10(.x))),
+  mean_gt_median = map_lgl(biomarker_raw[protein_cols],
+                           ~ mean(.x, na.rm = TRUE) > median(.x, na.rm = TRUE)))
+
+skew_table <- skew_summary |>
+  summarise(median_skew_raw = median(raw),
+            median_skew_log10 = median(log10),
+            pct_right_skewed_raw = mean(raw > 0) * 100,
+            pct_mean_above_median = mean(mean_gt_median) * 100)
+
+skew_table
+
+write_csv(skew_table, here("results", "tables", "q1-skewness-summary.csv"))
+
+```
+Across all proteins, about 97% are right skewed on the raw scale, with a middle skewness of 2.26 and the mean above the median for nearly all of them. After doing the $log_{10}$ transformation, the median skewness drops to 0.83, which is still a little right skewed but a large reduction, and it confirms what we said earlier that the log brings the distributions much closer to symmetric.
 
 
 
