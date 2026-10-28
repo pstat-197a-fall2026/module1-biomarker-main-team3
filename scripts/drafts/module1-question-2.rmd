@@ -1,0 +1,117 @@
+---
+title: "q2"
+author: "Ryan Chang"
+date: "2026-10-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Question 2: Temporarily remove the outlier trimming from preprocessing and do some exploratory analysis of the outlying values. Are there specific subjects (not values) that seem to be outliers? If so, are outliers more frequent in one group or the other? (Hint: consider tabulating the number of outlying values per subject.)
+
+
+First we remove the outlier trimming from preprocessing.
+
+
+```{r}
+library(tidyverse)
+
+
+# get names
+var_names <- read_csv('/Users/ryanchang377/pstat197a/module1-biomarker-main-team3/data/biomarker-raw.csv', 
+                     col_names = F, 
+                     n_max = 2, 
+                     col_select = -(1:2)) %>%
+  t() %>%
+  as_tibble() %>%
+  rename(name = V1, 
+         abbreviation = V2) %>%
+  na.omit()
+
+
+biomarker_clean <- read_csv('/Users/ryanchang377/pstat197a/module1-biomarker-main-team3/data/biomarker-raw.csv', 
+         skip = 2,
+         col_select = -2L,
+         col_names = c('group', 
+                       'empty',
+                       pull(var_names, abbreviation),
+                       'ados'),
+         na = c('-', '')) %>%
+  filter(!is.na(group)) %>%
+  mutate(across(.cols = -c(group, ados), 
+                ~ (scale(log10(.x))[, 1]))) %>%
+  select(group, ados, everything())
+
+
+
+
+save(list = 'biomarker_clean', 
+     file = '/Users/ryanchang377/pstat197a/module1-biomarker-main-team3/data/biomarker-clean.RData')
+biomarker_clean
+```
+Let's create a column called subject_id to map to each subject, and create another column called outlier_count to keep track of the amount of outlier_proteins each subject has.
+
+```{r}
+biomarker_untrimmed <- biomarker_clean %>%
+  mutate(subject_id = row_number())
+
+subject_outliers <- biomarker_untrimmed %>%
+  pivot_longer(cols = -c(subject_id, group, ados), names_to = "protein", values_to = "z_score") %>%
+  group_by(subject_id, group) %>%
+  summarize(outlier_count = sum(abs(z_score) > 3, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(outlier_count))
+
+subject_outliers
+```
+Now that we have created an outlier_count for every subject, we can now try to figure out if any of these subjects are outliers themselves based on outlier_count.
+
+
+```{r}
+subject_outliers %>%
+  summarize(min_outliers = min(outlier_count),
+            q25_outliers = quantile(outlier_count, 0.25),
+            median_outliers = median(outlier_count),
+            mean_outliers = mean(outlier_count),
+            q75_outliers = quantile(outlier_count, 0.75),
+            max_outliers = max(outlier_count),
+            iqr_outliers = IQR(outlier_count))
+```
+```{r}
+q75 <- quantile(subject_outliers$outlier_count, 0.75)
+iqr <- IQR(subject_outliers$outlier_count)
+cutoff <- q75 + 1.5 * iqr
+cutoff
+extreme_subjects <- subject_outliers %>%
+  filter(outlier_count > cutoff)
+
+print(extreme_subjects)
+```
+
+By using the rule that the cutoff for an outlier is quarter 3 plus the interquartilerange times 1.5, we can determine these 13 subjects as extreme outliers. The cutoff ended up being 29.375, meaning any subjects with an outlier_count higher than 29.375 were classified as extreme outliers.
+
+
+
+```{r}
+group_extreme_summary <- subject_outliers %>%
+  group_by(group) %>%
+  summarize(total_subjects = n(),
+            extreme_outlier_subjects = sum(outlier_count > cutoff),
+            extreme_proportion = (extreme_outlier_subjects / total_subjects) * 100,
+            mean_outliers_all = mean(outlier_count),
+            median_outliers_all = median(outlier_count))
+
+print(group_extreme_summary)
+wilcox.test(outlier_count ~ group, data = subject_outliers)
+```
+
+When comparing the two groups based on their mean outliers, median outliers, and total_outliers, we find that these groups are very similar. Their mean_outliers are only about 4.3 outlier proteins apart and their median outliers are actually equal as 8.5. In terms of extreme outliers, the TD group seems to have more, with 9 extreme outlier subjects compared to the 4 extreme outlier subjects of the ASD group. Upon conducting a wilcox rank sum test comparing the two groups, it returns a large p value of 0.8166, which suggests that these two groups are not statistically significantly different. 
+
+```{r}
+library(knitr)
+extreme_subjects %>%
+  kable(col.names = c("Subject_ID", "Group (Typically Developing or Autism Spectrum Disorder", "Outlier_Count"), caption = "Subjects Marked as Extreme Outliers")
+```
+Overall, this analysis seems to support the fact that systemic subject outliers do not seem to be different based on groups.
+
