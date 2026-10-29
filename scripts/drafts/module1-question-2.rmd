@@ -17,10 +17,10 @@ First we remove the outlier trimming from preprocessing.
 
 ```{r}
 library(tidyverse)
-
+library(here)
 
 # get names
-var_names <- read_csv('/Users/ryanchang377/pstat197a/module1-biomarker-main-team3/data/biomarker-raw.csv', 
+var_names <- read_csv(here("data", "biomarker-raw.csv"), 
                      col_names = F, 
                      n_max = 2, 
                      col_select = -(1:2)) %>%
@@ -31,7 +31,7 @@ var_names <- read_csv('/Users/ryanchang377/pstat197a/module1-biomarker-main-team
   na.omit()
 
 
-biomarker_clean <- read_csv('/Users/ryanchang377/pstat197a/module1-biomarker-main-team3/data/biomarker-raw.csv', 
+biomarker_clean <- read_csv(here("data", "biomarker-raw.csv"), 
          skip = 2,
          col_select = -2L,
          col_names = c('group', 
@@ -48,7 +48,7 @@ biomarker_clean <- read_csv('/Users/ryanchang377/pstat197a/module1-biomarker-mai
 
 
 save(list = 'biomarker_clean', 
-     file = '/Users/ryanchang377/pstat197a/module1-biomarker-main-team3/data/biomarker-clean.RData')
+     file = here('data', 'biomarker-clean.RData'))
 biomarker_clean
 ```
 Let's create a column called subject_id to map to each subject, and create another column called outlier_count to keep track of the amount of outlier_proteins each subject has.
