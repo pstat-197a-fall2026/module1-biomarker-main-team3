@@ -27,6 +27,10 @@ Write a brief one-paragraph abstract that describes the contents of your write-u
 
 ## Dataset
 
+The data came from Hewitson et al. (2021), who used serum proteomics to identify blood biomarkers for Austim Spectrum Disorder (ASD) in young boys. Blood samples were collected from 154 boys aged 18 months to 8 years: 76 with ASD and 78 typically developing (TD) boys. The level of 1317 proteins were measured for each subject. The dataset also records each subject's group (ASD or TD) and for boys with ASD, and ADOS severity score. In the published analysis, 192 of the proteins failed quality control, which left 1125 proteins. However, our analysis includes 1317.
+
+Preprocessing was conducted in three steps, each applied to every protein. First, a $log_{10}$ transformation reduced the strong right skew in the raw protein levels. Second, the log transformed values were standardized to $z$-scores so that proteins measured on different scales could be compared. Third, outliers were trimmed by capping the standardized values to the range \[-3,3\], which limits the influence of more extreme measurements on the analysis.
+
 Write a brief data description, including: how data were obtained; sample characteristics; variables measured; and data preprocessing. This can be largely based on the source paper and should not exceed 1-2 paragraphs.
 
 ## Summary of published analysis
