@@ -48,7 +48,93 @@ Summarize your findings here. I've included some subheaders in a way that seems 
 
 ### Impact of preprocessing and outliers
 
+```{r load-raw-data}
+#getting protein names
+library(tidyverse)
+library(here)
+var_names <- read_csv(here("data", "biomarker-raw.csv"), 
+                     col_names = F, 
+                     n_max = 2, 
+                     col_select = -(1:2)) |>
+  t() |>
+  as_tibble() |>
+  rename(name = V1, 
+         abbreviation = V2) |>
+  na.omit()
+
+#load in data
+biomarker_raw <- read_csv(here("data", "biomarker-raw.csv"),
+                          skip = 2,
+                          col_select = -2L,
+                          col_names = c("group",
+                                        "empty",
+                                        pull(var_names, abbreviation),
+                                        "ados"),
+                          na = c("-", "")) |>
+  filter(!is.na(group)) |>
+  select(group, ados, everything())
+
+
+```
+
+```{r, fig.width= 8, fig.height= 10}
+#picking 4 random proteins
+set.seed(2026)
+
+protein_cols <- setdiff(names(biomarker_raw), c("group","ados"))
+chosen <- sample(protein_cols, 4)
+
+hist_data <- biomarker_raw |>
+  select(all_of(chosen)) |>
+  pivot_longer(everything(), names_to = "protein", values_to = "raw") |>
+  mutate(log10 = log10(raw)) |>
+  pivot_longer(c(raw, log10), names_to = "scale", values_to = "value") |>
+  mutate(scale = factor(scale, levels = c("raw", "log10")))
+
+hist_plot <- ggplot(hist_data, aes(x = value)) +
+  geom_histogram(bins = 25, fill = "steelblue", color = "white") +
+  facet_wrap(vars(protein, scale), scales = "free", ncol = 2) +
+  labs(x = "protein level", y = "count",
+       title = "raw vs. log10 protein levels")
+
+hist_plot
+
+ggsave(here("results", "figures", "q1-raw-vs-log-histograms.png"),
+       plot = hist_plot, width = 8, height = 10, dpi = 300)
+
+```
+
+```{r skewness}
+skew <- function(x) {
+  x <- x[!is.na(x)]
+  mean((x - mean(x))^3) / sd(x)^3
+}
+
+skew_summary <- tibble(
+  protein = protein_cols,
+  raw = map_dbl(biomarker_raw[protein_cols], skew),
+  log10 = map_dbl(biomarker_raw[protein_cols], ~skew(log10(.x))),
+  mean_gt_median = map_lgl(biomarker_raw[protein_cols],
+                           ~ mean(.x, na.rm = TRUE) > median(.x, na.rm = TRUE)))
+
+skew_table <- skew_summary |>
+  summarise(median_skew_raw = median(raw),
+            median_skew_log10 = median(log10),
+            pct_right_skewed_raw = mean(raw > 0) * 100,
+            pct_mean_above_median = mean(mean_gt_median) * 100)
+
+skew_table
+
+write_csv(skew_table, here("results", "tables", "q1-skewness-summary.csv"))
+
+```
+
+We compared the raw and $log_{10}$ transformed distributions of four randomly selected proteins. The raw levels are strongly right skewed, with most values near the low end and a long tail of large values. After the $log_{10}$ transformation, the distributions are roughly symmetric. This holds across all proteins: the median skewness drops from around 2.25 to around 0.83, and 96.735% of proteins are right skewed on the raw scale. Since the later steps such as t-tests, z-scores, and trimming at $\pm3$) work best on symmetric data, the log transformation keeps a few extreme values from dominating the analysis.
+
+
 Tasks 1-2
+
+
 
 ### Methodological variations
 
@@ -57,6 +143,7 @@ Task 3
 ### Improved classifier
 
 Task 4
+
 ```{r}
 #| include: false
 #in class analysis
@@ -221,4 +308,5 @@ benchmark_table <- bind_rows(metrics_baseline, metrics_simple) %>%
 
 print(benchmark_table)
 ```
+
 To find a simpler predictive panel, we isolated the top three proteins (DERM, IgD, and RELT) from the baseline five-protein consensus set based on their Random Forest Gini impurity scores and evaluated them via logistic regression on the same train/test split. Despite a reduction in panel size, the three-protein model achieved higher classification performance and ROCAUC compared to the in-class baseline, demonstrating that the secondary markers (eIF-4H and TSP4) contributed mostly redundant variance. The baseline proteins had a ROCAUC of 0.883 and an accuracy of 0.774 while the simple panel of proteins had a ROCAU of 0.892 and an accuracy of 0.806.
