@@ -13,13 +13,16 @@ library(tidymodels)
 library(modelr)
 library(yardstick)
 library(vip)
+library(here)
 ```
 
 ```{r, include=FALSE}
 #in class analysis
 
-load('/Users/nicholaschan/Desktop/PSTAT197A/module1-biomarker-main-team3/data/biomarker-clean.RData')
+save(list = 'biomarker_clean', 
+     file = here('data', 'biomarker-clean.RData'))
 
+#biomarker_clean
 ## MULTIPLE TESTING
 ####################
 
@@ -126,7 +129,7 @@ test_eval %>%
 ```
 
 ```{r}
-# TASK 4: Simpler Panel
+# Question 4: Simpler Panel
 
 # Existing baseline panel
 print(proteins_sstar)
@@ -141,7 +144,7 @@ proteins_simple <- rf_imp_df %>%
   slice_max(MeanDecreaseGini, n = 3) %>%
   pull(protein)
 
-# Simple panel proteins after selecing top 3 based on importance scores
+# Simpler panel proteins after selecting top 3 based on importance scores
 print(proteins_simple)
 
 # Fit logistic regression on the same training data using the simple panel
@@ -177,5 +180,7 @@ benchmark_table <- bind_rows(metrics_baseline, metrics_simple) %>%
 
 print(benchmark_table)
 ```
+To find a simpler predictive panel, we isolated the top three proteins (DERM, IgD, and RELT) from the baseline five-protein consensus set based on their Random Forest Gini impurity scores and evaluated them via logistic regression on the same train/test split. Despite a reduction in panel size, the three-protein model achieved higher classification performance and ROCAUC compared to the in-class baseline, demonstrating that the secondary markers (eIF-4H and TSP4) contributed mostly redundant variance. The baseline proteins had a ROCAUC of 0.883 and an accuracy of 0.774 while the simple panel of proteins had a ROCAU of 0.892 and an accury of 0.806.
+
 
 
