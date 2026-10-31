@@ -56,7 +56,7 @@ var_names <- read_csv(here("data", "biomarker-raw.csv"),
                      col_names = F, 
                      n_max = 2, 
                      col_select = -(1:2)) |>
-  t() |>x
+  t() |>
   as_tibble() |>
   rename(name = V1, 
          abbreviation = V2) |>
@@ -226,11 +226,29 @@ After removing the outlier trimmers, we were able to work with all the data and 
 
 ### Methodological variations
 
-Task 3
+
+We examined three modifications to the original protein selection procedure to evaluate their effects on classification performance.
+
+**First,** we divided the dataset into 122 training subjects and 32 testing subjects using stratified sampling. Preprocessing parameters and feature selection were determined using only the training data to prevent data leakage. We selected the top 10 proteins using multiple testing and Random Forest importance, then identified six overlapping proteins: DERM, Calcineurin, MAPK2, FSTL1, IgD, and MAPK14. A logistic regression model was fitted using these proteins and evaluated on the testing set.
+
+**Second,** we increased the number of proteins selected by each method from 10 to 20 while maintaining the hard intersection rule. This increased the final panel size from 6 to 11 proteins.
+
+**Third,** we implemented a rank-based fuzzy intersection. Instead of requiring proteins to appear in both Top 10 lists, we assigned membership scores based on their rankings under each selection method and selected the 10 proteins with the highest combined fuzzy scores.
+
+| Method | Proteins | Accuracy | Sensitivity | Specificity | AUROC |
+|---|---:|---:|---:|---:|---:|
+| Top 10 – Hard | 6 | 0.656 | 0.500 | 0.812 | 0.723 |
+| Top 20 – Hard | 11 | 0.625 | 0.562 | 0.688 | 0.699 |
+| Top 10 – Fuzzy | 10 | 0.625 | 0.562 | 0.688 | 0.699 |
+
+**Results and Discussion**
+
+The Top 10 hard intersection achieved the highest accuracy (65.6%) and AUROC (0.723). Increasing the number of selected proteins reduced accuracy to 62.5%, although sensitivity improved slightly from 50.0% to 56.2%. The fuzzy intersection achieved the same reported classification performance as the Top 20 hard intersection while using one fewer protein.
+
+Overall, selecting more proteins did not improve predictive performance. However, the results are based on a single train-test split, and a direct comparison with the original feature selection procedure is still needed to assess the effect of preventing data leakage.
 
 ### Improved classifier
 
-Task 4
 
 ```{r}
 #| include: false
