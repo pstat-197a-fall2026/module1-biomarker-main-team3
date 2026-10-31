@@ -1,7 +1,7 @@
 ---
 title: "Biomarkers of ASD"
 subtitle: "If you want a subtitle put it here"
-author: "List names here"
+author: "Runxin Shen, Ryan Chang, Nic Chan, Khoi Huynh"
 date: last-modified
 published-title: "Updated"
 editor: visual
@@ -56,7 +56,7 @@ var_names <- read_csv(here("data", "biomarker-raw.csv"),
                      col_names = F, 
                      n_max = 2, 
                      col_select = -(1:2)) |>
-  t() |>
+  t() |>x
   as_tibble() |>
   rename(name = V1, 
          abbreviation = V2) |>
@@ -131,10 +131,98 @@ write_csv(skew_table, here("results", "tables", "q1-skewness-summary.csv"))
 
 We compared the raw and $log_{10}$ transformed distributions of four randomly selected proteins. The raw levels are strongly right skewed, with most values near the low end and a long tail of large values. After the $log_{10}$ transformation, the distributions are roughly symmetric. This holds across all proteins: the median skewness drops from around 2.25 to around 0.83, and 96.735% of proteins are right skewed on the raw scale. Since the later steps such as t-tests, z-scores, and trimming at $\pm3$) work best on symmetric data, the log transformation keeps a few extreme values from dominating the analysis.
 
+```{r}
+library(tidyverse)
+library(here)
 
-Tasks 1-2
+# get names
+var_names <- read_csv(here("data", "biomarker-raw.csv"), 
+                     col_names = F, 
+                     n_max = 2, 
+                     col_select = -(1:2)) %>%
+  t() %>%
+  as_tibble() %>%
+  rename(name = V1, 
+         abbreviation = V2) %>%
+  na.omit()
 
 
+biomarker_clean <- read_csv(here("data", "biomarker-raw.csv"), 
+         skip = 2,
+         col_select = -2L,
+         col_names = c('group', 
+                       'empty',
+                       pull(var_names, abbreviation),
+                       'ados'),
+         na = c('-', '')) %>%
+  filter(!is.na(group)) %>%
+  mutate(across(.cols = -c(group, ados), 
+                ~ (scale(log10(.x))[, 1]))) %>%
+  select(group, ados, everything())
+
+
+
+
+save(list = 'biomarker_clean', 
+     file = here('data', 'biomarker-clean.RData'))
+biomarker_clean
+```
+
+```{r}
+biomarker_untrimmed <- biomarker_clean %>%
+  mutate(subject_id = row_number())
+
+subject_outliers <- biomarker_untrimmed %>%
+  pivot_longer(cols = -c(subject_id, group, ados), names_to = "protein", values_to = "z_score") %>%
+  group_by(subject_id, group) %>%
+  summarize(outlier_count = sum(abs(z_score) > 3, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(outlier_count))
+
+subject_outliers
+```
+
+```{r}
+subject_outliers %>%
+  summarize(min_outliers = min(outlier_count),
+            q25_outliers = quantile(outlier_count, 0.25),
+            median_outliers = median(outlier_count),
+            mean_outliers = mean(outlier_count),
+            q75_outliers = quantile(outlier_count, 0.75),
+            max_outliers = max(outlier_count),
+            iqr_outliers = IQR(outlier_count))
+```
+
+```{r}
+q75 <- quantile(subject_outliers$outlier_count, 0.75)
+iqr <- IQR(subject_outliers$outlier_count)
+cutoff <- q75 + 1.5 * iqr
+cutoff
+extreme_subjects <- subject_outliers %>%
+  filter(outlier_count > cutoff)
+
+print(extreme_subjects)
+```
+
+```{r}
+group_extreme_summary <- subject_outliers %>%
+  group_by(group) %>%
+  summarize(total_subjects = n(),
+            extreme_outlier_subjects = sum(outlier_count > cutoff),
+            extreme_proportion = (extreme_outlier_subjects / total_subjects) * 100,
+            mean_outliers_all = mean(outlier_count),
+            median_outliers_all = median(outlier_count))
+
+print(group_extreme_summary)
+wilcox.test(outlier_count ~ group, data = subject_outliers)
+```
+
+```{r}
+library(knitr)
+extreme_subjects %>%
+  kable(col.names = c("Subject_ID", "Group (Typically Developing or Autism Spectrum Disorder", "Outlier_Count"), caption = "Subjects Marked as Extreme Outliers")
+```
+
+After removing the outlier trimmers, we were able to work with all the data and created a row called outlier_count to determine the number of outlier proteins each subject had, and then used the interquartile range method to determine whether a subject was an outlier based on the distribution of outlier_count. We ended up finding a total of 13 out of 154 subjects being subject outliers, which ranged from having an outlier_count of 33 all the way to 157. After analyzing these subject outliers, we found that the typically developing group had more subject outliers, as they had 9 and the autism spectrum disorder group had only 4. When comparing both groups in general, they seemed to be very similar to each other, having means in outlier_count only 4.3 outlier proteins apart, and they interestingly had the same outlier_count median of 8.5. After conducting a wilcox rank sum test to compare the groups, it yielded a high pvalue of 0.8166, suggesting that these two groups are not statistically significantly differnet based on outlier_count. This supports the claim that systemic subject outliers do not seem to be different based on groups.
 
 ### Methodological variations
 
