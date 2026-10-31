@@ -40,7 +40,9 @@ Preprocessing was conducted in three steps, each applied to every protein. First
 
 ## Summary of published analysis
 
-Summarize the methodology of the paper in 1-3 paragraphs. You need not explain the methods in depth as we did in class; just indicate what methods were used and how they were combined. If possible, include a diagram that depicts the methodological design. (Quarto has support for [GraphViz and Mermaid flowcharts](https://quarto.org/docs/authoring/diagrams.html).) Provide key results: the proteins selected for the classifier and the estimated accuracy.
+This study by Hewitson aimed to identify a blood biomarker panel for Autism Spectrum Disorder (ASD in adolescent boys by conducting proteomic analysis of serum samples using the SomaLogic SOMAScan platform, which measures a total of 1,125 targeted proteins. For the subjects, the group that had ASD were assessed by a psychologist using the Autism Diagnostic Observation Schedule and Autism Diagnostic Interview Revised, and the typically developing group which was used as a control was screened using the Adapative Behavior Assessment System (ADOS) second edition. After data normalization and a log transformation, there were three computational strategies used for the analysis were Random Forest using Mean Decrease Gini, t tests between the two groups and a correlation approach measuring the ADOS total scores to reflect clinical severity. The top ten highest average proteins were chosen for the RF based prediction model. There were 5 core proteins common to each method identified, and to maximize the predictive capability, more top highly ranked proteins were added in a stepwise optimization process to see if they contributed to the classification.
+
+
 
 ## Findings
 
