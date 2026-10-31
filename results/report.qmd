@@ -9,7 +9,7 @@ code-copy: true
 execute:
   message: false
   warning: false
-  echo: true
+  echo: false
   cache: true
 ---
 
